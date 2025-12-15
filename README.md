@@ -61,7 +61,7 @@ Commands:
 python run_server.py
 ```
 
-Then open http://127.0.0.1:8000 in your browser.
+Then open http://localhost:3141 in your browser.
 
 ## Usage Examples
 
@@ -134,8 +134,8 @@ See `docs/API_SPECIFICATION.md` for full documentation.
 
 Environment variables:
 - `DIMP_OUTPUT_DIR` - Output directory (default: ./outputs)
-- `DIMP_HOST` - Server host (default: 127.0.0.1)
-- `DIMP_PORT` - Server port (default: 8000)
+- `DIMP_HOST` - Server host (default: 0.0.0.0)
+- `DIMP_PORT` - Server port (default: 3141)
 - `DIMP_DEVICE` - Device (default: cuda)
 
 ## Testing

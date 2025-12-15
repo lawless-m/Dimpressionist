@@ -3,10 +3,14 @@
 Entry point for Dimpressionist web server.
 """
 
+import os
 import argparse
 import uvicorn
 
 from src.utils.config import get_config
+
+# Set HuggingFace cache to proper system location
+os.environ.setdefault('HF_HOME', '/var/lib/huggingface')
 
 
 def main():

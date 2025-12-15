@@ -5,8 +5,11 @@
 
 class APIClient {
     constructor(baseUrl = '') {
+        // Use relative paths to support reverse proxy deployments
+        // Extract base path from current location (e.g., /dimpressionist/ or /)
+        const basePath = window.location.pathname.split('/').slice(0, -1).join('/') || '';
         this.baseUrl = baseUrl || window.location.origin;
-        this.apiBase = `${this.baseUrl}/api/v1`;
+        this.apiBase = `${this.baseUrl}${basePath}/api/v1`;
     }
 
     /**
@@ -27,7 +30,28 @@ class APIClient {
             const data = await response.json();
 
             if (!response.ok) {
-                throw new Error(data.detail || `HTTP ${response.status}`);
+                // Handle structured error responses
+                let errorMessage = '';
+                if (typeof data.detail === 'object') {
+                    // New structured error format
+                    errorMessage = data.detail.message || data.detail.error || 'Unknown error';
+                    if (data.detail.instructions) {
+                        errorMessage += '\n\n' + data.detail.instructions;
+                    }
+                } else if (typeof data.detail === 'string') {
+                    // Old string format
+                    errorMessage = data.detail;
+                } else if (data.message) {
+                    // Direct message field
+                    errorMessage = data.message;
+                } else {
+                    errorMessage = `HTTP ${response.status}`;
+                }
+
+                const error = new Error(errorMessage);
+                error.statusCode = response.status;
+                error.details = data.detail;
+                throw error;
             }
 
             return data;
@@ -45,11 +69,11 @@ class APIClient {
             method: 'POST',
             body: JSON.stringify({
                 prompt,
-                steps: params.steps || 28,
+                steps: params.steps || 8,
                 guidance_scale: params.guidanceScale || 3.5,
                 seed: params.seed || null,
-                width: params.width || 1024,
-                height: params.height || 1024
+                width: params.width || 512,
+                height: params.height || 512
             })
         });
     }
@@ -62,10 +86,19 @@ class APIClient {
             method: 'POST',
             body: JSON.stringify({
                 modification,
-                strength: params.strength || 0.6,
-                steps: params.steps || 28,
+                strength: params.strength || 0.75,
+                steps: params.steps || 8,
                 guidance_scale: params.guidanceScale || 3.5
             })
+        });
+    }
+
+    /**
+     * Upscale current image to high resolution
+     */
+    async upscale() {
+        return this.request('/generate/upscale', {
+            method: 'POST'
         });
     }
 
@@ -133,10 +166,12 @@ class APIClient {
  */
 class WSHandler {
     constructor(baseUrl = '') {
+        // Use relative paths to support reverse proxy deployments
+        const basePath = window.location.pathname.split('/').slice(0, -1).join('/') || '';
         this.baseUrl = baseUrl || window.location.origin;
         const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const host = this.baseUrl.replace(/^https?:\/\//, '');
-        this.wsUrl = `${wsProtocol}//${host}/api/v1/ws`;
+        this.wsUrl = `${wsProtocol}//${host}${basePath}/api/v1/ws`;
 
         this.socket = null;
         this.reconnectAttempts = 0;

@@ -78,6 +78,9 @@ class RuleBasedInterpreter(PromptInterpreter):
         self._replace_pattern = re.compile(
             r'replace\s+(?:the\s+)?(\w+)\s+with\s+(.+)', re.IGNORECASE
         )
+        self._rather_than_pattern = re.compile(
+            r'make\s+(?:the\s+)?(\w+)\s+(?:a\s+|an\s+)?(\w+)\s+rather\s+than\s+(?:a\s+|an\s+)?(.+)', re.IGNORECASE
+        )
         self._background_pattern = re.compile(
             r'(?:change|set|make)\s+(?:the\s+)?background\s+(?:to\s+)?(.+)', re.IGNORECASE
         )
@@ -103,6 +106,10 @@ class RuleBasedInterpreter(PromptInterpreter):
             return result
 
         result = self._try_replacement(current_prompt, modification, mod_lower)
+        if result:
+            return result
+
+        result = self._try_rather_than(current_prompt, modification, mod_lower)
         if result:
             return result
 
@@ -202,6 +209,29 @@ class RuleBasedInterpreter(PromptInterpreter):
                 return pattern.sub(new_obj, current_prompt)
         return None
 
+    def _try_rather_than(
+        self, current_prompt: str, modification: str, mod_lower: str
+    ) -> Optional[str]:
+        """Try to interpret 'make X a Y rather than Z' patterns."""
+        match = self._rather_than_pattern.search(modification)
+        if match:
+            subject = match.group(1)  # e.g., "toy"
+            new_value = match.group(2)  # e.g., "bone"
+            old_value = match.group(3).strip()  # e.g., "biscuit"
+
+            # Try to find and replace old value in prompt
+            pattern = re.compile(r'\b' + re.escape(old_value) + r'\b', re.IGNORECASE)
+            if pattern.search(current_prompt):
+                return pattern.sub(new_value, current_prompt)
+
+            # If old value not found, look for subject and add new value
+            subject_pattern = re.compile(r'\b' + re.escape(subject) + r'\b', re.IGNORECASE)
+            if subject_pattern.search(current_prompt):
+                # Replace "toy" with "bone"
+                return subject_pattern.sub(new_value, current_prompt)
+
+        return None
+
     def _try_addition(
         self, current_prompt: str, modification: str, mod_lower: str
     ) -> Optional[str]:
@@ -242,22 +272,24 @@ class RuleBasedInterpreter(PromptInterpreter):
 
             # Check if attribute is a color
             if attribute.lower() in self.COLORS:
-                # Try to find and modify the subject's color
+                # Try to find the subject in the prompt
                 pattern = re.compile(
-                    r'(\b\w+\s+)?' + re.escape(subject),
+                    r'(\b\w+\s+)?(' + re.escape(subject) + r')',
                     re.IGNORECASE
                 )
                 match_in_prompt = pattern.search(current_prompt)
                 if match_in_prompt:
-                    # Check if there's an adjective (possibly a color) before the subject
                     prefix = match_in_prompt.group(1)
+                    subject_word = match_in_prompt.group(2)
+
                     if prefix and prefix.strip().lower() in self.COLORS:
-                        # Replace the color
-                        return current_prompt.replace(
-                            prefix.strip(),
-                            attribute,
-                            1
-                        )
+                        # Replace existing color
+                        old_text = prefix.strip() + ' ' + subject_word
+                        new_text = attribute + ' ' + subject_word
+                        return current_prompt.replace(old_text, new_text, 1)
+                    else:
+                        # No existing color, add the color before the subject
+                        return current_prompt.replace(subject_word, f"{attribute} {subject_word}", 1)
 
             # General "make X Y" - append as modification
             return f"{current_prompt}, {modification}"

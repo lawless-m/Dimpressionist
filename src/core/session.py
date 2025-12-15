@@ -170,8 +170,18 @@ class SessionState:
 class SessionManager:
     """Handles session persistence to disk."""
 
-    def __init__(self, session_file: Path):
-        self.session_file = Path(session_file)
+    def __init__(self, session_dir: Path, session_id: str):
+        """
+        Initialize session manager.
+
+        Args:
+            session_dir: Directory to store session files
+            session_id: Unique session identifier for this user
+        """
+        self.session_dir = Path(session_dir)
+        self.session_dir.mkdir(parents=True, exist_ok=True)
+        self.session_id = session_id
+        self.session_file = self.session_dir / f"session_{session_id}.json"
         self._session: Optional[SessionState] = None
 
     @property

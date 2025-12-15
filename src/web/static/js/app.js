@@ -15,9 +15,9 @@ class App {
             history: [],
             isGenerating: false,
             params: {
-                steps: 28,
+                steps: 8,  // Fast drafts for iteration
                 guidanceScale: 3.5,
-                strength: 0.6,
+                strength: 0.75,  // Higher strength for visible changes
                 seed: null
             }
         };
@@ -63,6 +63,7 @@ class App {
             emptyCanvas: document.getElementById('empty-canvas'),
             imageDisplay: document.getElementById('image-display'),
             currentImage: document.getElementById('current-image'),
+            upscaleBtn: document.getElementById('upscale-btn'),
             downloadBtn: document.getElementById('download-btn'),
 
             // Progress
@@ -160,6 +161,7 @@ class App {
 
         // Download
         this.elements.downloadBtn.addEventListener('click', () => this.handleDownload());
+        this.elements.upscaleBtn.addEventListener('click', () => this.handleUpscale());
 
         // Settings modal
         this.elements.settingsBtn.addEventListener('click', () => {
@@ -312,8 +314,20 @@ class App {
         this.elements.generateBtn.disabled = false;
         this.hideProgress();
 
+        // Extract error message properly
+        let errorMessage = 'Unknown error';
+        if (typeof error === 'string') {
+            errorMessage = error;
+        } else if (error && error.message) {
+            errorMessage = error.message;
+        } else if (error && error.error) {
+            errorMessage = error.error;
+        } else if (error) {
+            errorMessage = JSON.stringify(error);
+        }
+
         // Show error message
-        alert(`Generation failed: ${error.message}`);
+        alert(`Generation failed:\n\n${errorMessage}`);
     }
 
     /**
@@ -344,12 +358,27 @@ class App {
     }
 
     /**
+     * Fix URL to include base path for reverse proxy support
+     */
+    fixImageUrl(url) {
+        if (!url) return url;
+
+        // Extract base path from current location (e.g., /dimpressionist/ or /)
+        const basePath = window.location.pathname.split('/').slice(0, -1).join('/') || '';
+
+        // If URL starts with /api/ but doesn't include basePath, add it
+        if (url.startsWith('/api/') && basePath && !url.startsWith(basePath)) {
+            return `${basePath}${url}`;
+        }
+
+        return url;
+    }
+
+    /**
      * Show an image
      */
     showImage(imageData) {
-        const imageUrl = imageData.image_url.startsWith('/')
-            ? imageData.image_url
-            : `/${imageData.image_url}`;
+        const imageUrl = this.fixImageUrl(imageData.image_url);
 
         this.elements.currentImage.src = imageUrl;
         this.elements.emptyCanvas.style.display = 'none';
@@ -400,12 +429,12 @@ class App {
             el.classList.add('active');
         }
 
-        const thumbnailUrl = item.thumbnail_url || item.image_url;
+        const thumbnailUrl = this.fixImageUrl(item.thumbnail_url || item.image_url);
 
         el.innerHTML = `
             <img src="${thumbnailUrl}" alt="${item.prompt}" loading="lazy">
             <div class="history-item-overlay">
-                <span class="history-item-type ${item.type === 'refinement' ? 'refine' : ''}">${item.type === 'refinement' ? '✏️' : '✨'}</span>
+                <span class="history-item-type ${item.type === 'refinement' ? 'refine' : ''}">${item.type === 'refinement' ? 'R' : 'N'}</span>
             </div>
         `;
 
@@ -453,11 +482,34 @@ class App {
     handleDownload() {
         if (!this.state.currentImage) return;
 
-        const imageUrl = this.state.currentImage.image_url;
+        const imageUrl = this.fixImageUrl(this.state.currentImage.image_url);
         const link = document.createElement('a');
         link.href = imageUrl;
         link.download = imageUrl.split('/').pop();
         link.click();
+    }
+
+    /**
+     * Handle upscale button click
+     */
+    async handleUpscale() {
+        if (!this.state.currentImage || this.state.isGenerating) return;
+
+        this.state.isGenerating = true;
+        this.showProgress({ step: 0, total_steps: 28, status: 'upscaling' });
+
+        try {
+            const result = await this.api.upscale();
+
+            if (result && result.image_url) {
+                this.handleGenerationComplete({
+                    image_url: result.image_url,
+                    metadata: result.metadata
+                });
+            }
+        } catch (error) {
+            this.handleGenerationError({ message: error.message });
+        }
     }
 
     /**

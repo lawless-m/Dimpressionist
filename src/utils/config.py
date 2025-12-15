@@ -18,19 +18,19 @@ class AppConfig:
     thumbnails_dir: str = "./outputs/thumbnails"
 
     # Model settings
-    model_id: str = "black-forest-labs/FLUX.1-dev"
+    model_id: str = "black-forest-labs/FLUX.1-schnell"
     device: str = "cuda"
 
-    # Default generation parameters
-    default_steps: int = 28
+    # Default generation parameters (optimized for fast testing)
+    default_steps: int = 8  # FLUX.1-schnell works well with 4-10 steps
     default_guidance_scale: float = 3.5
-    default_strength: float = 0.6
-    default_width: int = 1024
-    default_height: int = 1024
+    default_strength: float = 0.75  # Higher strength allows prompt changes to show
+    default_width: int = 512  # Smaller = much faster (512x512 is ~4x faster than 1024x1024)
+    default_height: int = 512
 
     # Limits
     max_steps: int = 100
-    min_steps: int = 10
+    min_steps: int = 4  # FLUX.1-schnell supports as low as 4 steps
     max_width: int = 2048
     max_height: int = 2048
     min_width: int = 256
@@ -38,8 +38,8 @@ class AppConfig:
     max_prompt_length: int = 500
 
     # Server settings
-    host: str = "127.0.0.1"
-    port: int = 8000
+    host: str = "10.99.0.3"
+    port: int = 3141
     cors_origins: list = field(default_factory=lambda: ["*"])
 
     # Feature flags
@@ -52,15 +52,15 @@ class AppConfig:
         return cls(
             output_dir=os.getenv("DIMP_OUTPUT_DIR", "./outputs"),
             thumbnails_dir=os.getenv("DIMP_THUMBNAILS_DIR", "./outputs/thumbnails"),
-            model_id=os.getenv("DIMP_MODEL_ID", "black-forest-labs/FLUX.1-dev"),
+            model_id=os.getenv("DIMP_MODEL_ID", "black-forest-labs/FLUX.1-schnell"),
             device=os.getenv("DIMP_DEVICE", "cuda"),
-            default_steps=int(os.getenv("DIMP_DEFAULT_STEPS", "28")),
+            default_steps=int(os.getenv("DIMP_DEFAULT_STEPS", "8")),
             default_guidance_scale=float(os.getenv("DIMP_DEFAULT_GUIDANCE", "3.5")),
-            default_strength=float(os.getenv("DIMP_DEFAULT_STRENGTH", "0.6")),
-            default_width=int(os.getenv("DIMP_DEFAULT_WIDTH", "1024")),
-            default_height=int(os.getenv("DIMP_DEFAULT_HEIGHT", "1024")),
-            host=os.getenv("DIMP_HOST", "127.0.0.1"),
-            port=int(os.getenv("DIMP_PORT", "8000")),
+            default_strength=float(os.getenv("DIMP_DEFAULT_STRENGTH", "0.75")),
+            default_width=int(os.getenv("DIMP_DEFAULT_WIDTH", "512")),
+            default_height=int(os.getenv("DIMP_DEFAULT_HEIGHT", "512")),
+            host=os.getenv("DIMP_HOST", "10.99.0.3"),
+            port=int(os.getenv("DIMP_PORT", "3141")),
         )
 
     @classmethod
