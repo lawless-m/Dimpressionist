@@ -296,6 +296,7 @@ def entry_to_dict(entry: GenerationEntry, config) -> dict:
         "parent_id": entry.parent_id,
         "timestamp": entry.timestamp,
         "metadata": {
+            "prompt": entry.prompt,
             "seed": entry.seed,
             "steps": entry.steps,
             "guidance_scale": entry.guidance_scale,
